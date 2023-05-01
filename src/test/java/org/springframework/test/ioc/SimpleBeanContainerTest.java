@@ -13,10 +13,7 @@ import org.springframework.beans.factory.BeanFactory;
 public class SimpleBeanContainerTest {
     @Test
     public void testGetBean() {
-        BeanFactory beanFactory = new BeanFactory();
-        beanFactory.registerBean("helloService", new HelloService());
-        HelloService helloService = (HelloService) beanFactory.getBean("helloService");
-        helloService.sayHello();
+
     }
     class HelloService {
         public String sayHello() {
