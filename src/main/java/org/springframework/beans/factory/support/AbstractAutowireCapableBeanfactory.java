@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanReference;
 
 /**
  * mono-spring
@@ -52,6 +53,13 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
                 String name = propertyValue.getName();
                 Object value = propertyValue.getValue();
 
+                // 如果属性是一个bean,则需要先实例化该bean
+                // TODO: 解决循环依赖
+                if (value instanceof BeanReference) {
+                    BeanReference beanReference = (BeanReference) value;
+                    //
+                    value = getBean(beanReference.getBeanName());
+                }
                 // 通过反射设置属性
                 BeanUtil.setFieldValue(bean, name, value);
 
