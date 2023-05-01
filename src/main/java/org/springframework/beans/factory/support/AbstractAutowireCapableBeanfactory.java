@@ -1,6 +1,8 @@
 package org.springframework.beans.factory.support;
 
+import cn.hutool.core.bean.BeanUtil;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.config.BeanDefinition;
 
 /**
@@ -12,6 +14,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfactory {
 
     private InstantiationStrategy instantiationStrategy = new SimpleInstantiationStrategy();
+
     @Override
     protected Object creatBean(String beanName, BeanDefinition beanDefinition) throws BeansException {
         return doCreatBean(beanName, beanDefinition);
@@ -21,16 +24,50 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
         Class beanClass = beanDefinition.getBeanClass();
         Object bean = null;
         try {
+            // 实例化bean
             bean = creatBeanInstance(beanDefinition);
+
+            // 为bean填充属性
+            applyPropertyValues(beanName, bean, beanDefinition);
+
         } catch (Exception e) {
             throw new BeansException("Instantiation of bean failed", e);
         }
         // 放到单例池中
-        addSingleton(beanName,bean);
+        addSingleton(beanName, bean);
         return bean;
     }
 
-    // 策略模式
+    /**
+     * 属性填充
+     *
+     * @param beanName
+     * @param bean
+     * @param beanDefinition
+     */
+    private void applyPropertyValues(String beanName, Object bean, BeanDefinition beanDefinition) {
+        // 通过beanDefinition 获取 propertyValues
+        try {
+            for (PropertyValue propertyValue : beanDefinition.getPropertyValues().getPropertyValues()) {
+                String name = propertyValue.getName();
+                Object value = propertyValue.getValue();
+
+                // 通过反射设置属性
+                BeanUtil.setFieldValue(bean, name, value);
+
+            }
+        } catch (Exception e) {
+            throw new BeansException("error setting property values for bean [" + beanName + "]", e);
+        }
+    }
+
+    /**
+     * 策略模式
+     * 实例化bean
+     *
+     * @param beanDefinition
+     * @return
+     */
     private Object creatBeanInstance(BeanDefinition beanDefinition) {
         return instantiationStrategy.instantiate(beanDefinition);
     }
