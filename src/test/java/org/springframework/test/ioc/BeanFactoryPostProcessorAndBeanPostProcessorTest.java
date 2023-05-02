@@ -19,6 +19,7 @@ public class BeanFactoryPostProcessorAndBeanPostProcessorTest {
         XmlBeanDefinitionReader beanDefinitionReader = new XmlBeanDefinitionReader(beanFactory);
         beanDefinitionReader.loadBeanDefinitions("classpath:spring.xml");
 
+        // 手动添加 BeanFactoryPostProcessor
         //在所有BeanDefintion加载完成后，但在bean实例化之前，修改BeanDefinition的属性值
         CustomBeanFactoryPostProcessor beanFactoryPostProcessor = new CustomBeanFactoryPostProcessor();
         beanFactoryPostProcessor.postProcessorBeanFactory(beanFactory);

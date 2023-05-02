@@ -73,3 +73,29 @@ if (StrUtil.isNotEmpty(refAttribute)) {
 
 </beans>
 ```
+
+## [应用上下文ApplicationContext](#应用上下文ApplicationContext)
+> 代码分支：application-context
+
+- BeanFactory是spring的基础设施，面向spring本身
+- 而ApplicationContext面向spring的使用者，应用场合使用ApplicationContext。
+
+```java
+public void refresh() throws BeansException {
+        // 1. 创建BeanFactory,加载BeanDefinition
+        refreshBeanFactory();
+        // 1.2 获取beanFactory
+        ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+
+        // 2. 实例化前执行BeanFactoryPostProcessor
+        invokeBeanFactoryPostProcessor(beanFactory);
+
+        // 3. 实例化前注册BeanPostProcessor
+        registerBeanPostProcessor(beanFactory);
+
+        // 4. 提前实例化单例Bean
+        beanFactory.preInstantiateSingletons();
+    }
+```
+
+![](./asserts/ApplicationContext.png)
