@@ -35,3 +35,41 @@ public Resource getResource(String location) {
         }
     }
 ```
+## [在XML文件中定义Bean](#在XML文件中定义Bean)
+> 代码分支：xml-file-define-bean
+
+- 由于从xml文件中读取的内容是String类型，所以属性仅支持String类型和引用其他Bean。
+```java
+// String
+String valueAttribute = property.getAttribute(VALUE_ATTRIBUTE);
+//  引用类型
+if (StrUtil.isNotEmpty(refAttribute)) {
+    value = new BeanReference(refAttribute);
+}
+```
+- BeanDefinitionReader是读取bean定义信息的抽象接口，XmlBeanDefinitionReader是从xml文件中读取的实现类。
+- BeanDefinitionReader需要有获取资源的能力，且读取bean定义信息后需要往容器中注册BeanDefinition，因此BeanDefinitionReader的抽象实现类AbstractBeanDefinitionReader拥有ResourceLoader和BeanDefinitionRegistry两个属性。
+![asserts/xmlReader.png](./asserts/xmlReader.png)
+
+测试:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+	         http://www.springframework.org/schema/beans/spring-beans.xsd
+		 http://www.springframework.org/schema/context
+		 http://www.springframework.org/schema/context/spring-context-4.0.xsd">
+
+    <bean id="person" class="org.springframework.test.ioc.bean.Person">
+        <property name="name" value="derek"/>
+        <property name="car" ref="car"/>
+    </bean>
+
+    <bean id="car" class="org.springframework.test.ioc.bean.Car">
+        <property name="brand" value="porsche"/>
+    </bean>
+
+</beans>
+```

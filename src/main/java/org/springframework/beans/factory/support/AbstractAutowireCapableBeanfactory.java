@@ -3,6 +3,7 @@ package org.springframework.beans.factory.support;
 import cn.hutool.core.bean.BeanUtil;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValue;
+import org.springframework.beans.factory.config.AutowireCapableBeanfactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanReference;
 
@@ -12,7 +13,7 @@ import org.springframework.beans.factory.config.BeanReference;
  * @author MonoSirius
  * @date 2023/4/30
  */
-public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfactory {
+public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfactory implements AutowireCapableBeanfactory {
 
     private InstantiationStrategy instantiationStrategy = new SimpleInstantiationStrategy();
 
