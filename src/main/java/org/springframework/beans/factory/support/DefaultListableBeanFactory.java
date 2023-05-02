@@ -3,6 +3,7 @@ package org.springframework.beans.factory.support;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,4 +56,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanfacto
     public boolean containsBeanDefinition(String beanName) {
         return beanDefinitionMap.containsKey(beanName);
     }
+
+    @Override
+    public void preInstantiateSingletons() throws BeansException {
+        // 执行getBean方法进行实例化
+        beanDefinitionMap.keySet().forEach(this::getBean);
+    }
+
 }
