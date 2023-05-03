@@ -11,6 +11,9 @@
 - [x] [应用上下文ApplicationContext](#应用上下文applicationcontext)
 - [x] [bean的初始化和销毁方法](#bean的初始化和销毁方法)
 - [x] [Aware接口](#Aware接口)
+- [x] [prototype支持](#prototype支持)
+- [x] [FactoryBean](#FactoryBean)
+- [x] [容器事件和事件监听器](#容器事件和事件监听器)
 
 ### [为bean填充属性](#为bean填充属性)
 > 代码分支：populate-bean-with-property-values
@@ -277,3 +280,29 @@ public void preInstantiateSingletons() throws BeansException {
 
 至此,bean的生命周期:
 ![](./asserts/bean生命周期-prototype.png)
+
+### [FactoryBean](#FactoryBean)
+> 代码分支：factory-bean
+
+FactoryBean是一种特殊的bean，当向容器获取该bean时，容器不是返回其本身，而是返回其FactoryBean#getObject方法的返回值，可通过编码方式定义复杂的bean。
+
+#### 实现
+- 定义`FactoryBean`接口
+- 增加`FactoryBeanCache`缓存 用于存储单例FactoryBean
+- 修改`getBean`(AbstractBeanFactory类)方法,在实例化是判断是否是`FactoryBean`,如果是,则通过 `getObject` 返回
+```java
+// 不是单例bean
+if (!factoryBean.isSingleton()) {
+    object = factoryBean.getObject();
+    return object;
+}
+
+// 从缓存中拿或创建后放到缓存
+object = factoryBeanObjectCache.get(beanName);
+if (object == null) {
+    // 创建
+    object = factoryBean.getObject();
+    // 放到缓存
+    factoryBeanObjectCache.put(beanName, object);
+}
+```
