@@ -225,3 +225,55 @@ public Object postProcessBeforeInitialization(Object bean, String beanName) thro
 
 至此,当前bean生命周期:
 ![](./asserts/bean生命周期-Aware.png)
+
+### prototype支持
+> 代码分支：prototype-bean
+
+每次向容器获取prototype作用域bean时，容器都会创建一个新的实例。
+
+#### 实现
+1. beanDefinition中定义scope字段
+```java
+// 作用域 -> 默认单例
+private String scope = SCOPE_SINGLETON;
+
+private boolean singleton = true;
+private boolean prototype = false;
+```
+2. xmlReader中增加读取scope字段到definition的功能
+```java
+// 4.2 设置beanScope
+if (StrUtil.isNotEmpty(beanScope)) {
+    beanDefinition.setScope(beanScope);
+}
+```
+3. 增加加入单例池的判断(AbstractAutowireCapableBeanFactory#doCreateBean)
+```java
+// 将单例bean 放到单例池中
+if (beanDefinition.isSingleton()) {
+    addSingleton(beanName, bean);
+}
+```
+4. 注册销毁方法判断 -> prototype没有销毁方法(AbstractAutowireCapableBeanFactory#registerDisposableBeanIfNecessary)
+```java
+// prototype不执行销毁方法(prototype支持)
+if (! beanDefinition.isSingleton()) {
+    return;
+}
+```
+5. 实例化单例bean前进行判断
+```java
+// DefaultListableBeanFactory#preInstantiateSingletons
+public void preInstantiateSingletons() throws BeansException {
+    // 执行getBean方法进行实例化
+    beanDefinitionMap.forEach((beanName, beanDefinition) -> {
+        // 只对单例bean进行实例化
+        if (beanDefinition.isSingleton()) {
+            getBean(beanName);
+        }
+    });
+}
+```
+
+至此,bean的生命周期:
+![](./asserts/bean生命周期-prototype.png)
