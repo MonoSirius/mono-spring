@@ -10,6 +10,7 @@
 - [x] [容器扩展机制BeanFactoryPostProcess和BeanPostProcessor]()
 - [x] [应用上下文ApplicationContext](#应用上下文applicationcontext)
 - [x] [bean的初始化和销毁方法](#bean的初始化和销毁方法)
+- [x] [Aware接口](#Aware接口)
 
 ### [为bean填充属性](#为bean填充属性)
 > 代码分支：populate-bean-with-property-values
@@ -84,7 +85,7 @@ if (StrUtil.isNotEmpty(refAttribute)) {
 </beans>
 ```
 
-## [应用上下文ApplicationContext](#应用上下文ApplicationContext)
+### [应用上下文ApplicationContext](#应用上下文ApplicationContext)
 > 代码分支：application-context
 
 - BeanFactory是spring的基础设施，面向spring本身
@@ -179,3 +180,48 @@ public class Person implements DisposableBean, InitializingBean {
 ![](./asserts/init%20&%20destroy.png)
 
 ![](./asserts/bean生命周期-init和destory%20.png)
+
+### [Aware接口](#Aware接口)
+> 代码分支：aware-interface
+
+Aware是感知、意识的意思，Aware接口是标记性接口，其实现子类能感知容器相关的对象。
+常用的Aware接口有`BeanFactoryAware`和`ApplicationContextAware`，分别能让其实现者感知所属的`BeanFactory`和`ApplicationContext`。
+
+#### 实现BeanFactoryAware
+在AbstractAutowireCapableBeanFactory#initializeBean
+初始化bean的时候为bean注入BeanFactory
+
+```java
+// 为当前bean设置所属容器 (实现BeanFactoryAware感知)
+if (bean instanceof BeanFactoryAware) {
+    ((BeanFactoryAware) bean).setBeanFactory(this);
+}
+```
+
+#### 实现ApplicationContextAware
+1. 定义`BeanPostProcessor`实现类 `ApplicationContextAwareProcessor`
+2. 在 AbstractApplicationContext#refresh 时将处理器加入到容器中
+```java
+public void refresh() throws BeansException {
+    // 1. 创建BeanFactory,加载BeanDefinition
+    refreshBeanFactory();
+    // 1.2 获取beanFactory
+    ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+
+    // 2. 添加ApplicationContextAwareProcessor 实现ApplicationContext感知
+    beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+}
+```
+3. 在执行bean初始化前置方法时会为实现了ApplicationContextAware的类注入ApplicationContext
+```java
+@Override
+public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+    if (bean instanceof ApplicationContextAware) {
+        ((ApplicationContextAware) bean).setApplicationContext(applicationContext);
+    }
+    return bean;
+}
+```
+
+至此,当前bean生命周期:
+![](./asserts/bean生命周期-Aware.png)
