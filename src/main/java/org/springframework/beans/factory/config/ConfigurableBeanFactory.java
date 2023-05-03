@@ -8,8 +8,13 @@ import org.springframework.beans.factory.HierarchicalBeanFactory;
  */
 public interface ConfigurableBeanFactory extends SingletonBeanRegistry, HierarchicalBeanFactory {
     /**
-     *
+     * 注册BeanPostProcessor
      * @param beanPostProcessor
      */
     void addBeanPostProcessor(BeanPostProcessor beanPostProcessor);
+
+    /**
+     * 销毁单例bean
+     */
+    void destroySingletons();
 }

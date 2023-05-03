@@ -1,12 +1,19 @@
 package org.springframework.beans.factory.support;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.ClassUtil;
+import cn.hutool.core.util.StrUtil;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.PropertyValue;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.AutowireCapableBeanfactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.BeanReference;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 /**
  * mono-spring
@@ -27,7 +34,7 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
         Class beanClass = beanDefinition.getBeanClass();
         Object bean = null;
         try {
-            // 实例化bean
+            // 实例化bean (根据实例化策略)
             bean = creatBeanInstance(beanDefinition);
 
             // 为bean填充属性
@@ -39,9 +46,18 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
         } catch (Exception e) {
             throw new BeansException("Instantiation of bean failed", e);
         }
+        // 注册有销毁方法的bean
+        registerDisposableBeanIfNecessary(beanName, bean, beanDefinition);
+
         // 放到单例池中
         addSingleton(beanName, bean);
         return bean;
+    }
+
+    protected void registerDisposableBeanIfNecessary(String beanName, Object bean, BeanDefinition beanDefinition) {
+        if (bean instanceof DisposableBean || StrUtil.isNotEmpty(beanDefinition.getDestroyMethodName())) {
+            registerDisposableBean(beanName, new DisposableBeanAdapter(bean, beanName, beanDefinition));
+        }
     }
 
     /**
@@ -85,11 +101,18 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
         return instantiationStrategy.instantiate(beanDefinition);
     }
 
-    protected Object initializeBean(String beanName, Object bean, BeanDefinition beanDefinition) {
+    /**
+     * 初始化bean
+     * @param beanName
+     * @param bean
+     * @param beanDefinition
+     * @return
+     */
+    protected Object initializeBean(String beanName, Object bean, BeanDefinition beanDefinition) throws InvocationTargetException, IllegalAccessException {
         // 1. 执行beanPostProcessor前置处理
         Object wrappedBean = applyBeanPostProcessorsBeforeInitialization(bean, beanName);
 
-        // 2. TODO:初始化bean
+        // 2. 初始化bean
         invokeInitMethods(beanName, wrappedBean, beanDefinition);
 
         // 3. 执行beanPostProcessor后置处理
@@ -97,6 +120,8 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
 
         return wrappedBean;
     }
+
+
     @Override
     public Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) throws BeansException {
         Object result = existingBean;
@@ -131,9 +156,23 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
      * @param beanDefinition
      * @throws Throwable
      */
-    protected void invokeInitMethods(String beanName, Object bean, BeanDefinition beanDefinition) {
-        //TODO: 初始化bean
-        System.out.println("执行bean[" + beanName + "]的初始化方法");
+    protected void invokeInitMethods(String beanName, Object bean, BeanDefinition beanDefinition) throws InvocationTargetException, IllegalAccessException {
+        // 初始化bean
+        if (bean instanceof InitializingBean) {
+            ((InitializingBean) bean).afterPropertiesSet();
+        }
+        // 获取自定义初始化方法名
+        String initMethodName = beanDefinition.getInitMethodName();
+        if (StrUtil.isNotEmpty(initMethodName)) {
+            Method m = null;
+
+            Method initMethod = ClassUtil.getPublicMethod(beanDefinition.getBeanClass(), initMethodName);
+            if (initMethod == null) {
+                throw new BeansException("Could not find an init method named '" + initMethodName + "' on bean with name '" + beanName + "'");
+            }
+            initMethod.invoke(bean);
+        }
+
     }
 
     public InstantiationStrategy getInstantiationStrategy() {

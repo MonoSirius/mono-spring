@@ -1,7 +1,17 @@
 # mono-spring
-参考mini-spring， 实现最简单的spring功能
+参考[mini-spring](https://github.com/DerekYRC/mini-spring)， 实现最简单的spring功能
+## 功能
+- [x] [实现一个简单容器](#实现一个简单容器)
+- [x] [BeanDefinition & BeanDefinitionRegistry]()
+- [x] [Bean实例化策略]()
+- [x] [为bean填充属性](#为bean填充属性)
+- [x] [资源和资源加载器](#资源和资源加载器)
+- [x] [在xml文件中定义bean](#在xml文件中定义bean)
+- [x] [容器扩展机制BeanFactoryPostProcess和BeanPostProcessor]()
+- [x] [应用上下文ApplicationContext](#应用上下文applicationcontext)
+- [x] [bean的初始化和销毁方法](#bean的初始化和销毁方法)
 
-## [为bean填充属性](#为bean填充属性)
+### [为bean填充属性](#为bean填充属性)
 > 代码分支：populate-bean-with-property-values
 
 在BeanDefinition中增加和bean属性对应的PropertyValues，实例化bean之后，为bean填充属性(AbstractAutowireCapableBeanFactory#applyPropertyValues)。
@@ -10,7 +20,7 @@
 > 通过'getDeclaredConstructor()' 获取构造器会报错 'NoSuchMethodException'
 
 
-## [资源和资源加载器](#资源和资源加载器)
+### [资源和资源加载器](#资源和资源加载器)
 > 代码分支：resource-and-resource-loader
 Resource是资源的抽象和访问接口，简单写了三个实现类
 - FileSystemResource，文件系统资源的实现类
@@ -35,7 +45,7 @@ public Resource getResource(String location) {
         }
     }
 ```
-## [在XML文件中定义Bean](#在XML文件中定义Bean)
+### [在XML文件中定义Bean](#在XML文件中定义Bean)
 > 代码分支：xml-file-define-bean
 
 - 由于从xml文件中读取的内容是String类型，所以属性仅支持String类型和引用其他Bean。
@@ -99,3 +109,73 @@ public void refresh() throws BeansException {
 ```
 
 ![](./asserts/ApplicationContext.png)
+
+![](./asserts/bean加载流程.png)
+
+### [bean的初始化和销毁方法](#bean的初始化和销毁方法)
+> 代码分支：init-and-destroy-method
+
+#### 在spring中，定义bean的初始化和销毁方法有三种方法：
+
+- [x] 在xml文件中制定init-method和destroy-method
+- [x] 继承自InitializingBean和DisposableBean
+- [ ] 在方法上加注解PostConstruct和PreDestroy
+
+#### 实现
+1. 在`BeanDefinition`中增加属性`initMethodName`和`destroyMethodName`
+2. 增加两个接口 `DisposableBean` 和 `InitializingBean`
+```java
+public class Person implements DisposableBean, InitializingBean {
+    private String name;
+    private Integer age;
+
+    private Car car;
+    public Person() {
+    }
+
+    public Person(String name, Integer age, Car car) {
+        this.name = name;
+        this.age = age;
+        this.car = car;
+    }
+
+    public void customInitMethod() {
+        System.out.println("I was born in the method named customInitMethod");
+    }
+
+    public void customDestroyMethod() {
+        System.out.println("I died in the method named customDestroyMethod");
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        System.out.println("I died in the method named destroy");
+    }
+
+    @Override
+    public void afterPropertiesSet() throws BeansException {
+        System.out.println("I was born in the method named afterPropertiesSet");
+    }
+}
+```
+3. 在xml文件中指定初始化和销毁方法的方式, 通过xmlReader读取
+```xml
+<bean id="person"
+          class="org.springframework.test.ioc.bean.Person"
+          init-method="customInitMethod"
+          destroy-method="customDestroyMethod"
+    >
+        <property name="name" value="derek"/>
+        <property name="car" ref="car"/>
+    </bean>
+```
+
+3. 初始化方法在AbstractAutowireCapableBeanFactory#invokeInitMethods执行
+4. DefaultSingletonBeanRegistry中增加属性disposableBeans保存拥有销毁方法的bean,
+拥有销毁方法的bean在AbstractAutowireCapableBeanFactory#registerDisposableBeanIfNecessary中注册到disposableBeans中。
+5. 为了确保销毁方法在虚拟机关闭之前执行，向虚拟机中注册一个钩子方法，查看AbstractApplicationContext#registerShutdownHook
+
+执行顺序:
+![](./asserts/init%20&%20destroy.png)
+
+![](./asserts/bean生命周期-init和destory%20.png)
