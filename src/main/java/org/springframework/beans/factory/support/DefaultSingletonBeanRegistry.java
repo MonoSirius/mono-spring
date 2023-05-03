@@ -29,9 +29,11 @@ public class DefaultSingletonBeanRegistry implements SingletonBeanRegistry {
     public Object getSingleton(String beanName) {
         return singletonObjects.get(beanName);
     }
-    protected void addSingleton(String beanName, Object singletonObject) {
+
+    public void addSingleton(String beanName, Object singletonObject) {
         singletonObjects.put(beanName, singletonObject);
     }
+
     public void destroySingletons() {
         ArrayList<String> beanNames = new ArrayList<>(disposableBeans.keySet());
         for (String beanName : beanNames) {

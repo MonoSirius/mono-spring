@@ -1,6 +1,7 @@
 # mono-spring
 参考[mini-spring](https://github.com/DerekYRC/mini-spring)， 实现最简单的spring功能
 ## 功能
+### IOC
 - [x] [实现一个简单容器](#实现一个简单容器)
 - [x] [BeanDefinition & BeanDefinitionRegistry]()
 - [x] [Bean实例化策略]()
@@ -14,7 +15,23 @@
 - [x] [prototype支持](#prototype支持)
 - [x] [FactoryBean](#FactoryBean)
 - [x] [容器事件和事件监听器](#容器事件和事件监听器)
+### AOP
+- [ ] [切点表达式]
+- [ ] [基于JDK的动态代理]
+- [ ] [基于CGLIB的动态代理]
+- [ ] [AOP代理工厂ProxyFactory]
+- [ ] [几种常用的Advice: BeforeAdvice/AfterAdvice/AfterReturningAdvice/ThrowsAdvice]
+- [ ] [PointcutAdvisor：Pointcut和Advice的组合]
+- [ ] [动态代理融入bean生命周期]
 
+### 扩展篇
+- [ ] [PropertyPlaceholderConfigurer]
+- [ ] [包扫描]
+- [ ] [@Value注解]
+- [ ] [基于注解@Autowired的依赖注入]
+- [ ] [类型转换 I]
+- [ ] [类型转换 II]
+ 
 ### [为bean填充属性](#为bean填充属性)
 > 代码分支：populate-bean-with-property-values
 
@@ -304,5 +321,56 @@ if (object == null) {
     object = factoryBean.getObject();
     // 放到缓存
     factoryBeanObjectCache.put(beanName, object);
+}
+```
+
+### [容器事件和事件监听器](#容器事件和事件监听器)
+> 代码分支：event-and-event-listener
+
+#### 实现
+1. 定义 `ApplicationEvent` 事件抽象类, 事件监听器 `ApplicationListener` 和 事件发布器`ApplicationEventPublisher`
+2. 定义事件体系
+   - `ApplicationContextEvent` ApplicationContext容器事件抽象类
+   - `ContextRefreshedEvent` 容器刷新事件
+   - `ContextClosedEvent` 容器关闭事件
+![](./asserts/Event体系.png)
+3. 定义 ApplicationEventMulticaster 体系
+   - `ApplicationEventMulticaster` 接口 添加删除监听器, 发布事件
+   - `AbstractApplicationEventMulticaster` 定义了监听器set
+   - `SimpleApplicationEventMulticaster` 实现 multicastEvent , 遍历监听器, 对感兴趣的事件进行处理
+![](./asserts/ApplicationEventMulticaster体系.png)
+4. 在 AbstractApplicationContext 中增加属性 ApplicationEventMulticaster,并在`refresh`中实例化
+   - ApplicationContext 实现 publisher 接口, 作为事件发布者角色
+   - 初始化事件发布者
+   - 注册监听器
+   - 发布容器刷新完成事件
+   - 在doClose中发布容器关闭事件
+```java
+public void refresh() throws BeansException {
+   // 1. 创建BeanFactory,加载BeanDefinition
+   refreshBeanFactory();
+   // 1.2 获取beanFactory
+   ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+   
+   // 2. 添加ApplicationContextAwareProcessor 实现ApplicationContext感知
+   beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+   
+   // 3. 实例化前执行BeanFactoryPostProcessor
+   invokeBeanFactoryPostProcessor(beanFactory);
+   
+   // 4. 实例化前注册BeanPostProcessor
+   registerBeanPostProcessor(beanFactory);
+   
+   // 5. 初始化事件发布者
+   initApplicationEventMulticaster();
+   
+   // 6. 注册事件监听器
+   registerListeners();
+   
+   // 7. 提前实例化单例Bean
+   beanFactory.preInstantiateSingletons();
+   
+   // 8. 发布容器刷新完成事件
+   finishRefresh();
 }
 ```
