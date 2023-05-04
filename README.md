@@ -16,7 +16,7 @@
 - [x] [FactoryBean](#FactoryBean)
 - [x] [容器事件和事件监听器](#容器事件和事件监听器)
 ### AOP
-- [ ] [切点表达式]
+- [X] [切点表达式]
 - [ ] [基于JDK的动态代理]
 - [ ] [基于CGLIB的动态代理]
 - [ ] [AOP代理工厂ProxyFactory]
@@ -93,12 +93,12 @@ if (StrUtil.isNotEmpty(refAttribute)) {
 		 http://www.springframework.org/schema/context
 		 http://www.springframework.org/schema/context/spring-context-4.0.xsd">
 
-    <bean id="person" class="org.springframework.test.ioc.bean.Person">
+    <bean id="person" class="org.springframework.test.bean.Person">
         <property name="name" value="derek"/>
         <property name="car" ref="car"/>
     </bean>
 
-    <bean id="car" class="org.springframework.test.ioc.bean.Car">
+    <bean id="car" class="org.springframework.test.bean.Car">
         <property name="brand" value="porsche"/>
     </bean>
 
@@ -182,7 +182,7 @@ public class Person implements DisposableBean, InitializingBean {
 3. 在xml文件中指定初始化和销毁方法的方式, 通过xmlReader读取
 ```xml
 <bean id="person"
-          class="org.springframework.test.ioc.bean.Person"
+          class="org.springframework.test.bean.Person"
           init-method="customInitMethod"
           destroy-method="customDestroyMethod"
     >
@@ -374,3 +374,16 @@ public void refresh() throws BeansException {
    finishRefresh();
 }
 ```
+### [切点表达式](#切点表达式)
+> 代码分支：pointcut-expression
+
+- Joinpoint，织入点，指需要执行代理操作的某个类的某个方法(仅支持方法级别的JoinPoint)
+- Pointcut是JoinPoint的表述方式，能捕获JoinPoint。
+
+最常用的切点表达式是AspectJ的切点表达式。
+
+#### 实现
+1. 匹配类:`ClassFilter`接口
+2. 匹配方法:`MethodMatcher`接口
+3. `PointCut`需要同时匹配类和方法，包含`ClassFilter`和`MethodMatcher`
+4. `AspectJExpressionPointcut`是支持AspectJ切点表达式的`PointCut`实现，简单实现仅支持`execution`函数。
