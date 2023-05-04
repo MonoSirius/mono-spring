@@ -20,7 +20,7 @@
 - [X] [基于JDK的动态代理](#基于jdk动态代理)
 - [X] [基于CGLIB的动态代理](#基于CGLIB的动态代理)
 - [X] [AOP代理工厂ProxyFactory](#AOP代理工厂ProxyFactory)
-- [ ] [几种常用的Advice: BeforeAdvice/AfterAdvice/AfterReturningAdvice/ThrowsAdvice]
+- [X] [几种常用的Advice](#几种常用的Advice)
 - [ ] [PointcutAdvisor：Pointcut和Advice的组合]
 - [ ] [动态代理融入bean生命周期]
 
@@ -501,4 +501,34 @@ public class ProxyFactory {
         return new JdkDynamicAopProxy(advisedSupport);
     }
 }
+```
+
+### [几种常用的Advice](#几种常用的Advice)
+> 代码分支： common-advice
+
+Spring将AOP联盟中的Advice细化出各种类型的Advice，常用的有BeforeAdvice/AfterAdvice/AfterReturningAdvice/ThrowsAdvice
+我们可以通过扩展MethodInterceptor来实现
+
+- [x] BeforeAdvice
+- [x] AfterAdvice
+- [ ] AfterReturningAdvice
+- [ ] ThrowsAdvice
+
+#### 实现
+1. 定义 BeforeAdvice/AfterAdvice 接口继承 AOP联盟 Advice 接口
+2. 在MethodBeforeAdvice接口中定义 Before 通知方法
+```java
+public interface MethodBeforeAdvice extends BeforeAdvice{
+
+    void before(Method method, Object[] args, Object target) throws Throwable;
+}
+```
+3. 定义MethodBeforeAdviceInterceptor拦截器，在执行被代理方法之前，先执行BeforeAdvice的方法。
+```java
+ @Override
+ public Object invoke(MethodInvocation methodInvocation) throws Throwable {
+     //
+     this.advice.before(methodInvocation.getMethod(), methodInvocation.getArguments(), methodInvocation.getThis());
+     return methodInvocation.proceed();
+ }
 ```
