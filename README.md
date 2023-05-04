@@ -19,7 +19,7 @@
 - [X] [切点表达式](#切点表达式)
 - [X] [基于JDK的动态代理](#基于jdk动态代理)
 - [X] [基于CGLIB的动态代理](#基于CGLIB的动态代理)
-- [ ] [AOP代理工厂ProxyFactory]
+- [X] [AOP代理工厂ProxyFactory](#AOP代理工厂ProxyFactory)
 - [ ] [几种常用的Advice: BeforeAdvice/AfterAdvice/AfterReturningAdvice/ThrowsAdvice]
 - [ ] [PointcutAdvisor：Pointcut和Advice的组合]
 - [ ] [动态代理融入bean生命周期]
@@ -476,5 +476,29 @@ private static class DynamicAdvisedInterceptor implements MethodInterceptor {
       }
       return methodInvocation.proceed();
   }
+}
+```
+### [AOP代理工厂ProxyFactory](#AOP代理工厂ProxyFactory)
+> 代码分支：proxy-factory
+
+增加AOP代理工厂ProxyFactory，由`AdvisedSupport#proxyTargetClass`属性决定使用JDK动态代理还是CGLIB动态代理。
+```java
+public class ProxyFactory {
+    private AdvisedSupport advisedSupport;
+
+    public ProxyFactory(AdvisedSupport advisedSupport) {
+        this.advisedSupport = advisedSupport;
+    }
+
+    public Object getProxy() {
+        return creatAopProxy().getProxy();
+    }
+    private AopProxy creatAopProxy() {
+        // 根据proxyTargetClass决定使用什么代理
+        if (advisedSupport.isProxyTargetClass()) {
+            return new CglibAopProxy(advisedSupport);
+        }
+        return new JdkDynamicAopProxy(advisedSupport);
+    }
 }
 ```

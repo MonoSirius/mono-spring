@@ -7,6 +7,10 @@ import org.aopalliance.intercept.MethodInterceptor;
  * @date 2023/5/4
  */
 public class AdvisedSupport {
+
+    // 是否使用cglib
+    private boolean proxyTargetClass = false;
+
     // 目标对象
     private TargetSource targetSource;
     // 方法拦截器
@@ -16,6 +20,14 @@ public class AdvisedSupport {
 
     public TargetSource getTargetSource() {
         return targetSource;
+    }
+
+    public boolean isProxyTargetClass() {
+        return proxyTargetClass;
+    }
+
+    public void setProxyTargetClass(boolean proxyTargetClass) {
+        this.proxyTargetClass = proxyTargetClass;
     }
 
     public void setTargetSource(TargetSource targetSource) {
