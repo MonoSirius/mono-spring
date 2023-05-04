@@ -16,8 +16,8 @@
 - [x] [FactoryBean](#FactoryBean)
 - [x] [容器事件和事件监听器](#容器事件和事件监听器)
 ### AOP
-- [X] [切点表达式]
-- [ ] [基于JDK的动态代理]
+- [X] [切点表达式](#切点表达式)
+- [X] [基于JDK的动态代理](#基于jdk动态代理)
 - [ ] [基于CGLIB的动态代理]
 - [ ] [AOP代理工厂ProxyFactory]
 - [ ] [几种常用的Advice: BeforeAdvice/AfterAdvice/AfterReturningAdvice/ThrowsAdvice]
@@ -387,3 +387,55 @@ public void refresh() throws BeansException {
 2. 匹配方法:`MethodMatcher`接口
 3. `PointCut`需要同时匹配类和方法，包含`ClassFilter`和`MethodMatcher`
 4. `AspectJExpressionPointcut`是支持AspectJ切点表达式的`PointCut`实现，简单实现仅支持`execution`函数。
+
+### [基于JDK动态代理](#基于JDK动态代理)
+> 代码分支：jdk-dynamic-proxy
+
+AopProxy是获取代理对象的抽象接口，JdkDynamicAopProxy的基于JDK动态代理的具体实现。
+TargetSource，被代理对象的封装。
+
+#### 实现
+1. 通过方法拦截器MethodInterceptor 去对方法进行增强
+```java
+public class WorldServiceInterceptor implements MethodInterceptor {
+    @Override
+    public Object invoke(MethodInvocation methodInvocation) throws Throwable {
+        System.out.println("Do something before the earth explodes");
+        Object result = methodInvocation.proceed();
+        System.out.println("Do something after the earth explodes");
+        return result;
+    }
+}
+```
+2. 通过MethodInvocation对方法进行调用
+```java
+public class JdkDynamicAopProxy implements AopProxy, InvocationHandler {
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        if (advised.getMethodMatcher().matches(method, advised.getTargetSource().getClass())) {
+            MethodInterceptor methodInterceptor = advised.getMethodInterceptor();
+            return methodInterceptor.invoke(new ReflectiveMethodInvocation(advised.getTargetSource().getTarget(), method, args));
+        }
+        return method.invoke(advised.getTargetSource().getTarget(), args);
+    }
+}
+```
+3. 代理类
+```java
+public class JdkDynamicAopProxy implements AopProxy, InvocationHandler {
+    private final AdvisedSupport advised;
+
+    /**
+     * 返回代理对象
+     * @return
+     */
+    @Override
+    public Object getProxy() {
+        return Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                advised.getTargetSource().getTargetClass(),
+                this);
+    }
+}
+```
+
