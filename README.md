@@ -18,7 +18,7 @@
 ### AOP
 - [X] [切点表达式](#切点表达式)
 - [X] [基于JDK的动态代理](#基于jdk动态代理)
-- [ ] [基于CGLIB的动态代理]
+- [X] [基于CGLIB的动态代理](#基于CGLIB的动态代理)
 - [ ] [AOP代理工厂ProxyFactory]
 - [ ] [几种常用的Advice: BeforeAdvice/AfterAdvice/AfterReturningAdvice/ThrowsAdvice]
 - [ ] [PointcutAdvisor：Pointcut和Advice的组合]
@@ -31,7 +31,8 @@
 - [ ] [基于注解@Autowired的依赖注入]
 - [ ] [类型转换 I]
 - [ ] [类型转换 II]
- 
+
+## 复现记录
 ### [为bean填充属性](#为bean填充属性)
 > 代码分支：populate-bean-with-property-values
 
@@ -438,4 +439,42 @@ public class JdkDynamicAopProxy implements AopProxy, InvocationHandler {
     }
 }
 ```
+### [基于CGLIB的动态代理](#基于CGLIB的动态代理)
+> 代码分支：cglib-dynamic-proxy
 
+基于CGLIB的动态代理能在运行期间动态构建字节码的class文件，为类生成子类，因此被代理类不需要继承自任何接口。
+
+#### 实现
+1. 创建代理类
+```java
+public Object getProxy() {
+  Enhancer enhancer = new Enhancer();
+  // 设置父类(即目标类)
+  enhancer.setSuperclass(advised.getTargetSource().getTarget().getClass());
+  // 目标类实现的接口
+  enhancer.setInterfaces(advised.getTargetSource().getTargetClass());
+  //
+  enhancer.setCallback(new DynamicAdvisedInterceptor(advised));
+  return enhancer.create();
+}
+```
+2. 创建适配静态内部类 `DynamicAdvisedInterceptor`
+```java
+private static class DynamicAdvisedInterceptor implements MethodInterceptor {
+  private final AdvisedSupport advised;
+
+  private DynamicAdvisedInterceptor(AdvisedSupport advised) {
+      this.advised = advised;
+  }
+
+  @Override
+  public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
+      CglibMethodInvocation methodInvocation = new CglibMethodInvocation(advised.getTargetSource().getTarget(), method, objects, methodProxy);
+      if (advised.getMethodMatcher().matches(method,advised.getTargetSource().getTarget().getClass())) {
+          // 执行代理方法
+          return advised.getMethodInterceptor().invoke(methodInvocation);
+      }
+      return methodInvocation.proceed();
+  }
+}
+```
