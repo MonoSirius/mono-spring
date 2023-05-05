@@ -8,10 +8,7 @@ import org.springframework.beans.PropertyValue;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.config.AutowireCapableBeanfactory;
-import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.beans.factory.config.BeanReference;
+import org.springframework.beans.factory.config.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -28,7 +25,47 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
 
     @Override
     protected Object creatBean(String beanName, BeanDefinition beanDefinition) throws BeansException {
+        // 如果bean需要代理,直接返回代理对象
+        Object bean = resolveBeforeInstantiation(beanName, beanDefinition);
+        if (bean != null) {
+            return bean;
+        }
+
         return doCreatBean(beanName, beanDefinition);
+    }
+
+    /**
+     * 执行InstantiationAwareBeanPostProcessor的方法，如果bean需要代理，直接返回代理对象
+     * 会导致短路,不会继续执行原来的bean的初始化流程
+     *
+     * @param beanName
+     * @param beanDefinition
+     * @return
+     */
+    protected Object resolveBeforeInstantiation(String beanName, BeanDefinition beanDefinition) {
+        Object bean = applyBeanPostProcessorBeforeInstantiation(beanDefinition.getBeanClass(), beanName);
+        if (bean != null) {
+            bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+        }
+        return bean;
+    }
+
+    /**
+     * 执行实例化前的PostProcess
+     * @param beanClass
+     * @param beanName
+     * @return
+     */
+    protected Object applyBeanPostProcessorBeforeInstantiation(Class beanClass, String beanName) {
+        for (BeanPostProcessor processor : getBeanPostProcessors()) {
+            if (processor instanceof InstantiationAwareBeanPostProcessor) {
+                Object result = ((InstantiationAwareBeanPostProcessor) processor).postProcessBeforeInstantiation(beanClass, beanName);
+                if (result != null) {
+                    return result;
+                }
+            }
+        }
+        return null;
     }
 
     protected Object doCreatBean(String beanName, BeanDefinition beanDefinition) {
@@ -63,13 +100,14 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
      * 1. prototype不执行
      * 2. 实现了DisposableBean接口
      * 3. 有Destroy方法
+     *
      * @param beanName
      * @param bean
      * @param beanDefinition
      */
     protected void registerDisposableBeanIfNecessary(String beanName, Object bean, BeanDefinition beanDefinition) {
         // prototype不执行销毁方法(prototype支持)
-        if (! beanDefinition.isSingleton()) {
+        if (!beanDefinition.isSingleton()) {
             return;
         }
 

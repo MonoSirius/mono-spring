@@ -21,8 +21,8 @@
 - [X] [基于CGLIB的动态代理](#基于CGLIB的动态代理)
 - [X] [AOP代理工厂ProxyFactory](#AOP代理工厂ProxyFactory)
 - [X] [几种常用的Advice](#几种常用的Advice)
-- [x] [PointcutAdvisor：Pointcut和Advice的组合]
-- [ ] [动态代理融入bean生命周期]
+- [x] [PointcutAdvisor：Pointcut和Advice的组合](#Pointcutadvisorpointcut和advice的组合)
+- [X] [动态代理融入bean生命周期](#动态代理融入bean生命周期)
 
 ### 扩展篇
 - [ ] [PropertyPlaceholderConfigurer]
@@ -533,7 +533,7 @@ public interface MethodBeforeAdvice extends BeforeAdvice{
  }
 ```
 
-### [PointcutAdvisor：Pointcut和Advice的组合]
+### [PointcutAdvisor：Pointcut和Advice的组合](#Pointcutadvisorpointcut和advice的组合)
 > 代码分支：pointcut-advisor
 
 - Advisor是包含一个Pointcut和一个Advice的组合，Pointcut用于捕获JoinPoint，Advice决定在JoinPoint执行某种操作。
@@ -569,5 +569,129 @@ class DynamicProxyTests {
          proxy.explode();
       }
    }
+}
+```
+
+### [动态代理融入bean生命周期](#动态代理融入bean生命周期)
+> 代码分支: auto-proxy
+
+BeanPostProcessor处理阶段可以修改和替换bean，正好可以在此阶段返回代理对象替换原对象.
+引入一种特殊的BeanPostProcessor——`InstantiationAwareBeanPostProcessor`.
+
+#### 实现
+1. 定义InstantiationAwareBeanPostProcessor接口
+```java
+public interface InstantiationAwareBeanPostProcessor extends BeanPostProcessor{
+
+    /**
+     * 在bean实例化之前执行
+     * @param beanClass
+     * @param beanName
+     * @return
+     * @throws BeansException
+     */
+    Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException;
+}
+```
+2. 接口实现类 `DefaultAdvisorAutoProxyCreator` 实例化bean并生成代理对象
+```java
+public class DefaultAdvisorAutoProxyCreator implements InstantiationAwareBeanPostProcessor, BeanFactoryAware {
+    private DefaultListableBeanFactory beanFactory;
+    /**
+     * 对bean进行实例化,生成代理对象后返回
+     *
+     * @param beanClass
+     * @param beanName
+     * @return
+     * @throws BeansException
+     */
+    @Override
+    public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+        // 避免死循环
+        if (isInfrastructureClass(beanClass)) {
+            return null;
+        }
+        Collection<AspectJExpressionPointcutAdvisor> advisors = beanFactory.getBeansOfType(AspectJExpressionPointcutAdvisor.class).values();
+        try {
+            for (AspectJExpressionPointcutAdvisor advisor : advisors) {
+                ClassFilter classFilter = advisor.getPointcut().getClassFilter();
+                if (classFilter.matches(beanClass)) {
+                    // 1. 实例化bean
+                    BeanDefinition beanDefinition = beanFactory.getBeanDefinition(beanName);
+                    Object bean = beanFactory.getInstantiationStrategy().instantiate(beanDefinition);
+
+                    // 2. 代理
+                    AdvisedSupport advisedSupport = new AdvisedSupport();
+                    advisedSupport.setMethodMatcher(advisor.getPointcut().getMethodMatcher());
+                    advisedSupport.setMethodInterceptor((MethodInterceptor) advisor.getAdvice());
+                    advisedSupport.setTargetSource(new TargetSource(bean));
+
+                    // 3. 返回代理对象
+                    return new ProxyFactory(advisedSupport).getProxy();
+                }
+            }
+        } catch (BeansException e) {
+            throw new BeansException("Error create proxy bean for: " + beanName, e);
+        }
+        return null;
+    }
+
+    private boolean isInfrastructureClass(Class<?> beanClass) {
+        return Advice.class.isAssignableFrom(beanClass)
+                || Pointcut.class.isAssignableFrom(beanClass)
+                || Advisor.class.isAssignableFrom(beanClass);
+    }
+}
+```
+3. 在bean实例化前(执行`doCreat`方法前) 执行 `postProcessBeforeInstantiation`
+```java
+public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfactory implements AutowireCapableBeanfactory {
+
+    private InstantiationStrategy instantiationStrategy = new SimpleInstantiationStrategy();
+
+    @Override
+    protected Object creatBean(String beanName, BeanDefinition beanDefinition) throws BeansException {
+        // 如果bean需要代理,直接返回代理对象
+        Object bean = resolveBeforeInstantiation(beanName, beanDefinition);
+        if (bean != null) {
+            return bean;
+        }
+
+        return doCreatBean(beanName, beanDefinition);
+    }
+
+    /**
+     * 执行InstantiationAwareBeanPostProcessor的方法，如果bean需要代理，直接返回代理对象
+     * 会导致短路,不会继续执行原来的bean的初始化流程
+     *
+     * @param beanName
+     * @param beanDefinition
+     * @return
+     */
+    protected Object resolveBeforeInstantiation(String beanName, BeanDefinition beanDefinition) {
+        Object bean = applyBeanPostProcessorBeforeInstantiation(beanDefinition.getBeanClass(), beanName);
+        if (bean != null) {
+            bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+        }
+        return bean;
+    }
+
+    /**
+     * 执行实例化前的PostProcess
+     * @param beanClass
+     * @param beanName
+     * @return
+     */
+    protected Object applyBeanPostProcessorBeforeInstantiation(Class beanClass, String beanName) {
+        for (BeanPostProcessor processor : getBeanPostProcessors()) {
+            if (processor instanceof InstantiationAwareBeanPostProcessor) {
+                Object result = ((InstantiationAwareBeanPostProcessor) processor).postProcessBeforeInstantiation(beanClass, beanName);
+                if (result != null) {
+                    return result;
+                }
+            }
+        }
+        return null;
+    }
 }
 ```
