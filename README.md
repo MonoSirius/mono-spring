@@ -23,7 +23,7 @@
 - [X] [几种常用的Advice](#几种常用的Advice)
 - [x] [PointcutAdvisor：Pointcut和Advice的组合](#Pointcutadvisorpointcut和advice的组合)
 - [X] [动态代理融入bean生命周期](#动态代理融入bean生命周期)
-
+- [x] [bug fix: 没有为代理类设置属性的短路问题](#bug fix: 没有为代理类设置属性的短路问题)
 ### 扩展篇
 - [ ] [PropertyPlaceholderConfigurer]
 - [ ] [包扫描]
@@ -695,3 +695,16 @@ public abstract class AbstractAutowireCapableBeanfactory extends AbstractBeanfac
     }
 }
 ```
+
+### [bug fix: 没有为代理类设置属性的短路问题](#bug fix: 没有为代理类设置属性的短路问题)
+> 代码分支: populate-proxy-bean-with-property-values
+
+问题现象：没有为代理bean设置属性 在实例化前直接短路 后面的处理器也没有执行
+
+修复方案：跟spring保持一致，将织入逻辑迁移到BeanPostProcessor#postProcessAfterInitialization,
+即将DefaultAdvisorAutoProxyCreator#postProcessBeforeInstantiation的内容迁移到
+DefaultAdvisorAutoProxyCreator#postProcessAfterInitialization中。
+
+即: 代理逻辑织入到Bean初始化后执行
+
+> ⚠️:删除原来在代理前实例化的逻辑,否则会重复实例化
