@@ -21,7 +21,7 @@
 - [X] [基于CGLIB的动态代理](#基于CGLIB的动态代理)
 - [X] [AOP代理工厂ProxyFactory](#AOP代理工厂ProxyFactory)
 - [X] [几种常用的Advice](#几种常用的Advice)
-- [ ] [PointcutAdvisor：Pointcut和Advice的组合]
+- [x] [PointcutAdvisor：Pointcut和Advice的组合]
 - [ ] [动态代理融入bean生命周期]
 
 ### 扩展篇
@@ -531,4 +531,43 @@ public interface MethodBeforeAdvice extends BeforeAdvice{
      this.advice.before(methodInvocation.getMethod(), methodInvocation.getArguments(), methodInvocation.getThis());
      return methodInvocation.proceed();
  }
+```
+
+### [PointcutAdvisor：Pointcut和Advice的组合]
+> 代码分支：pointcut-advisor
+
+- Advisor是包含一个Pointcut和一个Advice的组合，Pointcut用于捕获JoinPoint，Advice决定在JoinPoint执行某种操作。
+- 实现了一个支持aspectj表达式的AspectJExpressionPointcutAdvisor。
+
+#### 实现
+1. 定义Advisor接口和PointcutAdvisor接口
+2. 定义AspectJExpressionPointcutAdvisor 实现 PointcutAdvisor接口
+
+> Tip: AOP联盟的 MethodInterceptor 接口 是 Advice 的子接口, 可以对Advice进行增强
+
+#### 测试
+- 从 Advisor中拿到 Advice 和 Pointcut
+```java
+class DynamicProxyTests {
+   @Test
+   public void testPointcutAdvisor() {
+      WorldService worldService = new WorldServiceImpl();
+      String expression = "execution(* org.springframework.test.service.WorldService.explode(..))";
+      AspectJExpressionPointcutAdvisor advisor = new AspectJExpressionPointcutAdvisor(expression);
+      MethodBeforeAdviceInterceptor mbai = new MethodBeforeAdviceInterceptor(new WorldServiceBeforeAdvice());
+      advisor.setAdvice(mbai);
+      ClassFilter classFilter = advisor.getPointcut().getClassFilter();
+      if (classFilter.matches(worldService.getClass())) {
+         AdvisedSupport advisedSupport = new AdvisedSupport();
+
+         TargetSource targetSource = new TargetSource(worldService);
+         advisedSupport.setTargetSource(targetSource);
+         advisedSupport.setMethodInterceptor((MethodInterceptor) advisor.getAdvice());
+         advisedSupport.setMethodMatcher(advisor.getPointcut().getMethodMatcher());
+
+         WorldService proxy = (WorldService) new ProxyFactory(advisedSupport).getProxy();
+         proxy.explode();
+      }
+   }
+}
 ```
